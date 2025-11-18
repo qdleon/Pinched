@@ -1,0 +1,5 @@
+{
+  "name": "Hysteresis Loop Simulator",
+  "description": "An interactive physics simulation of non-linear stiffness perturbation, demonstrating pinched hysteresis loops and memory properties in frequency and amplitude domains.",
+  "requestFramePermissions": []
+}
