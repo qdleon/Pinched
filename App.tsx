@@ -4,7 +4,7 @@ import { HysteresisChart } from './components/HysteresisChart';
 import { TimeSeriesChart } from './components/TimeSeriesChart';
 import { stepSimulation, calculateAmplitude, MackeyGlassGenerator, ReadoutLayer } from './services/physicsEngine';
 import { CONSTANTS, SimulationState, ReservoirDataPoint } from './types';
-import { RotateCcw, Info, Cpu, ArrowUpFromLine, ArrowDownFromLine, Play, Square, BrainCircuit, MemoryStick, Activity, Gauge } from 'lucide-react';
+import { RotateCcw, Info, Cpu, ArrowUpFromLine, ArrowDownFromLine, Play, Square, BrainCircuit, MemoryStick, Activity, Gauge, Scale } from 'lucide-react';
 
 const BIT_COUNT = 1;
 const WINDOW_SIZE = 100;
@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const [reservoirData, setReservoirData] = useState<ReservoirDataPoint[]>([]);
   const [reservoirState, setReservoirState] = useState<SimulationState>(createInitialState());
   const [mse, setMse] = useState(0);
+  const [currentWeights, setCurrentWeights] = useState<number[]>([0,0,0,0]);
   const [speed, setSpeed] = useState(5); // 1 (Slow) to 10 (Fast)
 
   // --- Animation Control ---
@@ -63,10 +64,8 @@ const App: React.FC = () => {
                 const u_t = mackeyGlass.next();
                 
                 // 2. Scale u(t) to Voltage range [-1.5, 1.5]
-                // PREVIOUSLY: (u_t - 0.9) * 2.5; -> Too narrow, didn't trigger jumps often.
-                // NEW: Map u(t) [~0.6 to ~1.4] to [~-1.5 to ~1.5]
+                // Map u(t) [~0.6 to ~1.4] to [~-1.5 to ~1.5]
                 // Center of thresholds (-0.9, 1.1) is 0.1.
-                // Center of Mackey Glass is approx 1.0.
                 // Gain 4.0 ensures we hit the edges.
                 const voltage = (u_t - 1.0) * 4.0 + 0.1;
                 const clampedVoltage = Math.max(CONSTANTS.VOLTAGE_MIN, Math.min(CONSTANTS.VOLTAGE_MAX, voltage));
@@ -77,7 +76,7 @@ const App: React.FC = () => {
                    
                    // 4. Readout: Predict
                    // Predict current step:
-                   const y_t = readout.predict(u_t, next.amplitude);
+                   // const y_t = readout.predict(u_t, next.amplitude);
                    
                    return next;
                 });
@@ -90,10 +89,14 @@ const App: React.FC = () => {
                       const error = readout.train(lastPoint.input, lastPoint.reservoirState, u_t);
                       setMse(m => m * 0.95 + (error * error) * 0.05); // Moving average MSE
                    } else {
+                      // Initial priming
                       readout.train(u_t, reservoirState.amplitude, u_t); 
                    }
 
-                   // Generate prediction for NEXT step
+                   // Capture weights for UI (prove it's learning)
+                   setCurrentWeights([...readout.weights]);
+
+                   // Generate prediction for NEXT step (One-Step-Ahead Prediction)
                    const currentPrediction = readout.predict(u_t, reservoirState.amplitude);
 
                    const newData = [...prev, {
@@ -131,7 +134,7 @@ const App: React.FC = () => {
     return () => {
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isSweeping, mode, speed]); // Added speed to dependencies
+  }, [isSweeping, mode, speed]); 
 
   // --- Handlers ---
 
@@ -171,6 +174,7 @@ const App: React.FC = () => {
     setReservoirData([]);
     setReservoirState(createInitialState());
     setMse(0);
+    setCurrentWeights([0,0,0,0]);
   };
 
   return (
@@ -282,24 +286,38 @@ const App: React.FC = () => {
                             yDomain={[0, 25]}
                         />
                         <p className="text-xs text-slate-500 mt-2">
-                            The input signal drives the system through its <strong>full hysteresis loop</strong>. 
-                            Branch switching (Red/Blue) creates path-dependent memory essential for predicting chaos.
+                            Input u(t) is mapped to voltage. The system follows the hysteresis loop. 
+                            <span className="block mt-1 text-purple-300">State = Amplitude A(t)</span>
                         </p>
                      </div>
 
                      <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-lg">
-                        <h3 className="text-slate-300 font-bold mb-2 flex items-center gap-2">
-                             Performance Metrics
+                        <h3 className="text-slate-300 font-bold mb-3 flex items-center gap-2">
+                             <Scale size={18} className="text-green-400"/>
+                             Readout Weights (LMS Training)
                         </h3>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="bg-slate-900 p-3 rounded border border-slate-700">
-                                <div className="text-xs text-slate-500 uppercase">MSE (Loss)</div>
+                                <div className="text-[10px] text-slate-500 uppercase tracking-wider">MSE (Loss)</div>
                                 <div className="text-xl font-mono font-bold text-red-400">{mse.toFixed(5)}</div>
                             </div>
-                            <div className="bg-slate-900 p-3 rounded border border-slate-700">
-                                <div className="text-xs text-slate-500 uppercase">Learning</div>
-                                <div className="text-xl font-mono font-bold text-green-400">Active (LMS)</div>
+                            <div className="bg-slate-900 p-3 rounded border border-slate-700 flex flex-col justify-center">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                    <span className="text-sm text-slate-300 font-bold">Learning Active</span>
+                                </div>
                             </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-2">
+                             {['Bias', 'Input u(t)', 'State x(t)', 'x(t)²'].map((label, i) => (
+                                 <div key={i} className="bg-slate-900/50 p-2 rounded border border-slate-700/50 text-center">
+                                    <div className="text-[10px] text-slate-500 mb-1">{label}</div>
+                                    <div className={`text-xs font-mono ${currentWeights[i] < 0 ? 'text-red-300' : 'text-blue-300'}`}>
+                                        {currentWeights[i].toFixed(3)}
+                                    </div>
+                                 </div>
+                             ))}
                         </div>
                      </div>
                 </div>
@@ -341,7 +359,7 @@ const App: React.FC = () => {
                                 <span className="text-cyan-400 font-bold">Cyan Line:</span> Readout Prediction y(t) ≈ u(t+1)
                             </p>
                             <p className="text-xs border-t border-slate-700 pt-2 mt-2 text-slate-500">
-                                The system predicts the <em>next</em> step of the Mackey-Glass chaotic series. 
+                                The system predicts the <em>next</em> step of the Mackey-Glass chaotic series using a linear combination of the current input and the reservoir's hysteretic state.
                             </p>
                         </div>
                     </div>

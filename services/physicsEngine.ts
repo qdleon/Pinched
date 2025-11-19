@@ -118,9 +118,9 @@ export class MackeyGlassGenerator {
  */
 export class ReadoutLayer {
   // Weights for [Bias, Input, ReservoirState, ReservoirState^2]
-  // We add polynomial features to help the linear readout since the reservoir is small (1 node)
-  private weights: number[] = [0, 0, 0, 0]; 
-  private learningRate = 0.05;
+  // Made PUBLIC so we can visualize them in the UI to prove it's learning
+  public weights: number[] = [0, 0, 0, 0]; 
+  private learningRate = 0.02; // Slightly slower learning to make it visible
 
   predict(input: number, reservoirState: number): number {
     // Normalize inputs slightly for stability
