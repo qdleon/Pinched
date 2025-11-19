@@ -12,6 +12,14 @@ export interface ChartPoint {
   y: number;
 }
 
+export interface ReservoirDataPoint {
+  step: number;
+  input: number;        // u(t)
+  reservoirState: number; // x(t) = A(t)
+  prediction: number;   // y(t)
+  target: number;       // u(t+1)
+}
+
 export const CONSTANTS = {
   VOLTAGE_MIN: -1.5,
   VOLTAGE_MAX: 1.5,
