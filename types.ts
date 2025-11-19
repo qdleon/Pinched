@@ -12,14 +12,6 @@ export interface ChartPoint {
   y: number;
 }
 
-export interface ReservoirDataPoint {
-  step: number;
-  input: number;        // u(t)
-  reservoirState: number; // x(t) = A(t)
-  prediction: number;   // y(t)
-  target: number;       // u(t+1)
-}
-
 export const CONSTANTS = {
   VOLTAGE_MIN: -1.5,
   VOLTAGE_MAX: 1.5,
@@ -36,15 +28,15 @@ export const CONSTANTS = {
   // Amplitude Model Constants (mV) - Quadratic Models
   // Formula: y = Quad*(v^2) + Lin*v + Const
   
-  // Lower Branch (Red): Concave Down, Peak at v=1
-  // "Slope gets smaller and smaller" (Concave Down)
+  // Lower Branch (Blue): Concave Down, Peak at v=-1 (Left)
+  // Swapped to enable upward jump at right threshold
   AMP_LOWER_QUAD: -2.5,
-  AMP_LOWER_LIN: 5.0,
+  AMP_LOWER_LIN: -5.0, 
   AMP_LOWER_CONST: 17.5,
   
-  // Upper Branch (Blue): Concave Down, Peak at v=-1
-  // "Slope gets smaller and smaller" (Concave Down) - Fixed from previous Concave Up
+  // Upper Branch (Red): Concave Down, Peak at v=1 (Right)
+  // Swapped to enable upward jump at left threshold
   AMP_UPPER_QUAD: -2.5,
-  AMP_UPPER_LIN: -5.0,
+  AMP_UPPER_LIN: 5.0,
   AMP_UPPER_CONST: 17.5,
 };

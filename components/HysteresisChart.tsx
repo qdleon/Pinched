@@ -64,8 +64,8 @@ export const HysteresisChart: React.FC<HysteresisChartProps> = ({
   }, [yDomain]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Determine active color based on branch
-  // Upper Branch = Blue, Lower Branch = Red
-  const strokeColor = currentBranch === 'upper' ? '#3b82f6' : '#ef4444';
+  // Swapped Colors: Upper Branch = Red, Lower Branch = Blue
+  const strokeColor = currentBranch === 'upper' ? '#ef4444' : '#3b82f6';
 
   return (
     <div className="bg-white rounded-lg overflow-hidden">
