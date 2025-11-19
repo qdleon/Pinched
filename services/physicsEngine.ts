@@ -1,34 +1,35 @@
+
 import { CONSTANTS, SimulationState } from '../types';
 
 /**
- * Calculates the Frequency Response (Graph A)
- * A linear slope with a discontinuous jump based on branch state.
+ * Calculates the Frequency Response (Fig 8a)
+ * Lower Branch: Bottom trace (Red)
+ * Upper Branch: Top trace (Blue)
  */
 export const calculateFrequency = (voltage: number, branch: 'upper' | 'lower'): number => {
-  const linearPart = CONSTANTS.FREQ_BASE + (CONSTANTS.FREQ_SLOPE * voltage);
-  const offsetPart = branch === 'upper' ? CONSTANTS.FREQ_JUMP : 0;
-  return linearPart + offsetPart;
+  // Base offset based on branch
+  const base = branch === 'upper' ? CONSTANTS.FREQ_UPPER_BASE : CONSTANTS.FREQ_LOWER_BASE;
+  // Linear dependency on voltage
+  return base + (CONSTANTS.FREQ_SLOPE * voltage);
 };
 
 /**
- * Calculates the Amplitude Response (Graph B - Pinched Loop)
- * Modeled as two intersecting parabolas/bell-curves to create the butterfly shape.
+ * Calculates the Amplitude Response (Fig 8b)
+ * Implements the "Pinched Hysteresis Loop" with quadratic curves.
  */
 export const calculateAmplitude = (voltage: number, branch: 'upper' | 'lower'): number => {
-  // To create the "pinch" and crossing at 0:
-  // The "Upper" branch (Blue, active when decreasing) peaks at negative voltage
-  // The "Lower" branch (Red, active when increasing) peaks at positive voltage
-  
-  if (branch === 'upper') {
-    // Active when coming from right to left (Blue path)
-    // Visually corresponds to the curve that is higher on the left side
-    // Modeled as a peak shifted slightly left
-    return CONSTANTS.AMP_BASE - CONSTANTS.AMP_CURVE * Math.pow(Math.abs(voltage + CONSTANTS.AMP_ASYMMETRY), 1.5);
+  if (branch === 'lower') {
+    // Red Curve: Concave Down, Peak at V=1
+    // y = ax^2 + bx + c
+    return (CONSTANTS.AMP_LOWER_QUAD * Math.pow(voltage, 2)) + 
+           (CONSTANTS.AMP_LOWER_LIN * voltage) + 
+           CONSTANTS.AMP_LOWER_CONST;
   } else {
-    // Active when coming from left to right (Red path)
-    // Visually corresponds to the curve that is higher on the right side
-    // Modeled as a peak shifted slightly right
-    return CONSTANTS.AMP_BASE - CONSTANTS.AMP_CURVE * Math.pow(Math.abs(voltage - CONSTANTS.AMP_ASYMMETRY), 1.5);
+    // Blue Curve: Concave Up, Slope increases
+    // y = ax^2 + bx + c
+    return (CONSTANTS.AMP_UPPER_QUAD * Math.pow(voltage, 2)) + 
+           (CONSTANTS.AMP_UPPER_LIN * voltage) + 
+           CONSTANTS.AMP_UPPER_CONST;
   }
 };
 
@@ -49,10 +50,14 @@ export const stepSimulation = (
   if (targetVoltage < prevVoltage) direction = 'decreasing';
 
   // Hysteresis Logic
+  // Jump UP to Upper Branch (Frequency) when increasing past THRESHOLD_UP
+  // Note: In Amplitude domain, this causes a jump DOWN to the other curve
   if (direction === 'increasing' && targetVoltage >= CONSTANTS.THRESHOLD_UP) {
-    newBranch = 'upper'; // Jump UP on the right side
-  } else if (direction === 'decreasing' && targetVoltage <= CONSTANTS.THRESHOLD_DOWN) {
-    newBranch = 'lower'; // Jump DOWN on the left side
+    newBranch = 'upper'; 
+  } 
+  // Jump DOWN to Lower Branch (Frequency) when decreasing past THRESHOLD_DOWN
+  else if (direction === 'decreasing' && targetVoltage <= CONSTANTS.THRESHOLD_DOWN) {
+    newBranch = 'lower'; 
   }
 
   return {
